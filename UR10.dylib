@@ -1,0 +1,75 @@
+#import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
+
+static BOOL isUR10Active = NO;
+static UIButton *ur10FloatingButton = nil;
+
+@interface UR10DraggableButton : UIButton
+@end
+
+@implementation UR10DraggableButton
+- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView:self.superview];
+    self.center = location;
+}
+@end
+
+%hook UIWindow
+- (void)makeKeyAndVisible {
+    %orig;
+    if (!ur10FloatingButton && [[[NSBundle mainBundle] bundleIdentifier] isEqualToString:@"com.toyopagroup.picaboo"]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIWindow *window = self;
+            ur10FloatingButton = [UR10DraggableButton buttonWithType:UIButtonTypeCustom];
+            [ur10FloatingButton setFrame:CGRectMake(30, 120, 50, 50)];
+            [ur10FloatingButton setTitle:@"UR10" forState:UIControlStateNormal];
+            [ur10FloatingButton.titleLabel setFont:[UIFont boldSystemFontOfSize:12]];
+            [ur10FloatingButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+            ur10FloatingButton.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.1 alpha:0.8];
+            ur10FloatingButton.layer.cornerRadius = 25;
+            ur10FloatingButton.layer.borderWidth = 1.5;
+            ur10FloatingButton.layer.borderColor = [[UIColor systemCyanColor] CGColor];
+            ur10FloatingButton.clipsToBounds = YES;
+            
+            [ur10FloatingButton addTarget:[window.rootViewController view] action:@selector(handleUR10Menu) forControlEvents:UIControlEventTouchUpInside];
+            [window addSubview:ur10FloatingButton];
+            [window bringSubviewToFront:ur10FloatingButton];
+        });
+    }
+}
+%end
+
+%hook UIViewController
+%new
+- (void)handleUR10Menu {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"⚡ UR10 Tweak Pro" 
+                                                                    message:@"اختر وضع المحاكاة للاتصال أو الملاحظة الصوتية:" 
+                                                              - preferredStyle:UIAlertControllerStyleActionSheet];
+    
+    // 1. مكالمة صوتية وتحديد ملف MP3
+    [alert addAction:[UIAlertAction actionWithTitle:@"🎵 مكالمة صوتية: اختيار ملف MP3" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        isUR10Active = YES;
+        ur10FloatingButton.layer.borderColor = [[UIColor systemGreenColor] CGColor];
+    }]];
+    
+    // 2. مكالمة فيديو وتحديد ملف MP4 بدون صوت
+    [alert addAction:[UIAlertAction actionWithTitle:@"🎬 مكالمة فيديو: اختيار ملف MP4" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        isUR10Active = YES;
+        ur10FloatingButton.layer.borderColor = [[UIColor systemPurpleColor] CGColor];
+    }]];
+    
+    // 3. ميزة إضافة ملاحظة صوتية من المكتبة (Audio Note / Voice Note)
+    [alert addAction:[UIAlertAction actionWithTitle:@"🎙️ إرفاق ملاحظة صوتية (مكتبة الملفات)" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        isUR10Active = YES;
+        ur10FloatingButton.layer.borderColor = [[UIColor systemOrangeColor] CGColor];
+    }]];
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"إلغاء التفعيل وإغلاق" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+        isUR10Active = NO;
+        ur10FloatingButton.layer.borderColor = [[UIColor systemCyanColor] CGColor];
+    }]];
+    
+    [self presentViewController:alert animated:YES completion:nil];
+}
+%end
